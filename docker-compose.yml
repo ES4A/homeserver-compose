@@ -1,0 +1,73 @@
+version: '3.8'
+
+x-common-env: &common-env
+  DB_HOST: db
+  DB_USER: server
+  DB_PWD: 12345678ab
+  DB_NAME: es4a
+
+services:
+  db:
+    image: mariadb
+    restart: unless-stopped
+    container_name: mariadb
+    environment:
+      MYSQL_ROOT_PASSWORD: 12345678ab
+      MYSQL_DATABASE: es4a
+      MYSQL_USER: server
+      MYSQL_PASSWORD: 12345678ab
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - homeserver
+    
+  mqtt:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    container_name: mqtt
+    networks:
+      - homeserver
+
+  app:
+    image: ghcr.io/es4a/homeserver-app:1.26.9.2-beta.2
+    restart: unless-stopped
+    container_name: homeserver
+    privileged: true
+    ports:
+      - "80:80"
+    environment:
+      <<: *common-env
+    depends_on:
+      - db
+      - mqtt
+    networks:
+      - homeserver
+    volumes:
+      - app_data:/es4a
+      - app_backup:/es4a-backup
+  
+  event:
+    image: ghcr.io/es4a/homeserver-event:1.26.9.2-beta.2
+    restart: unless-stopped
+    container_name: homeserver-event
+    privileged: true
+    ports:
+      - "81:81"
+    environment:
+      <<: *common-env
+    depends_on:
+      - db
+      - mqtt
+    networks:
+      - homeserver
+    volumes:
+      - app_data:/es4a
+
+networks:
+  homeserver:
+    driver: bridge
+
+volumes:
+  db_data:
+  app_data:
+  app_backup:
